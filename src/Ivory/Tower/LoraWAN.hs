@@ -1,7 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleContexts #-}
---module Ivory.Tower.LoraWAN where
+
 module Ivory.Tower.LoraWAN (
     new
   , joinRequest
@@ -10,10 +10,7 @@ module Ivory.Tower.LoraWAN (
   , packString
   , loraWANDeps
   , loraWANModule
---  , module Ivory.Tower.LoraWAN.Artifacts
   , module Ivory.Tower.LoraWAN.Types
---  , module Ivory.Tower.LoraWAN.Keys
---  , module Ivory.Tower.LoraWAN.Import
   ) where
 
 import Ivory.Language
