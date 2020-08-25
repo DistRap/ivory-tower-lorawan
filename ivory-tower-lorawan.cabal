@@ -15,6 +15,7 @@ data-files: support/lorawan-crypto.c
           , support/aes/aes.h
           , support/aes/aescrypt.c
           , support/aes/aeskey.c
+          , support/aes/aesopt.h
           , support/aes/aestab.c
           , support/aes/aestab.h
           , support/aes/brg_endian.h

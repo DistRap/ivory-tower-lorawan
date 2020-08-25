@@ -28,6 +28,7 @@ aesFiles = map ("aes" </>)
   [ "aes.h"
   , "aescrypt.c"
   , "aeskey.c"
+  , "aesopt.h"
   , "aestab.c"
   , "aestab.h"
   , "brg_endian.h"
