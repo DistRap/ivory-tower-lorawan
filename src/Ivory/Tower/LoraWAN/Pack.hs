@@ -65,27 +65,34 @@ packMacPayload :: KnownNat len
                -> Ivory (AllocEffects s4) Uint32
 packMacPayload buf off mhdrRef m = do
   mhdr <- deref mhdrRef
-  -- cond, handle empty payload but non-empty fhdr addr
-  fhdrOff <- ifte (
+  len <- deref (m ~> mac_frm_payload ~> stringLengthL)
+  cond [
         mhdr #. mtype ==? join_request
     .|| mhdr #. mtype ==? join_accept
     .|| mhdr #. mtype ==? rejoin_request
-    )
-    (return off)
-    (do
-      o <- packFHDR buf off (m ~> mac_fhdr)
-      packInto buf o (m ~> mac_fport)
-      return $ o + 1
-    )
+    ==> do
+      comment "pack frm_payload"
+      arrayMap $ \i -> do
+        when (i <=? toIx len) $ do
+          packInto buf (off + (signCast $ fromIx i))
+            (m ~> mac_frm_payload ~> stringDataL ! i)
 
-  len <- deref (m ~> mac_frm_payload ~> stringLengthL)
-  comment "pack frm_payload"
-  arrayMap $ \i -> do
-    when (i <=? toIx len) $ do
-      packInto buf (fhdrOff + (signCast $ fromIx i))
-        (m ~> mac_frm_payload ~> stringDataL ! i)
+      return $ off + (signCast len)
 
-  return $ fhdrOff + (signCast len)
+    , true
+    ==> do
+      fhdrOff <- packFHDR buf off (m ~> mac_fhdr)
+      when (len >? 0) $ do
+        comment "pack fport"
+        packInto buf fhdrOff (m ~> mac_fport)
+
+        comment "pack frm_payload"
+        arrayMap $ \i -> do
+          when (i <=? toIx len) $ do
+            packInto buf (fhdrOff + 1 + (signCast $ fromIx i))
+              (m ~> mac_frm_payload ~> stringDataL ! i)
+      return $ fhdrOff + (signCast $ (len ==? 0) ? (0, len + 1))
+    ]
 
 unpackMacPayload :: KnownNat len
                  => ConstRef s1 ('Array len ('Stored Uint8))
@@ -96,29 +103,36 @@ unpackMacPayload :: KnownNat len
                  -> Ivory (AllocEffects s4) ()
 unpackMacPayload buf off len mhdrRef mp = do
   mhdr <- deref mhdrRef
-  -- cond, handle empty payload but non-empty fhdr addr
-  fhdrOff <- ifte (
+  cond_ [
         mhdr #. mtype ==? join_request
     .|| mhdr #. mtype ==? join_accept
     .|| mhdr #. mtype ==? rejoin_request
-    )
-    (return off)
-    (do
-      o <- unpackFHDR buf off (mp ~> mac_fhdr)
-      unpackFrom buf o (mp ~> mac_fport)
-      return $ o + 1
-    )
+    ==> do
+      comment "unpack frm_payload"
+      arrayMap $ \i -> do
+        when (i <=? toIx ((signCast :: Uint32 -> Sint32) (len - off))) $ do
+          unpackFrom buf (off + (signCast $ fromIx i))
+            (mp ~> mac_frm_payload ~> stringDataL ! i)
 
-  comment "unpack frm_payload"
-  arrayMap $ \i -> do
-    when (i <=? toIx ((signCast :: Uint32 -> Sint32) (len - fhdrOff))) $ do
-      unpackFrom buf (fhdrOff + (signCast $ fromIx i))
-        (mp ~> mac_frm_payload ~> stringDataL ! i)
+      store (mp ~> mac_frm_payload ~> stringLengthL)
+            (signCast $ len)
 
-  store (mp ~> mac_frm_payload ~> stringLengthL)
-        (signCast $ len - (fhdrOff - off))
+    , true
+    ==> do
+      fhdrOff <- unpackFHDR buf off (mp ~> mac_fhdr)
+      when (len - fhdrOff >? 0) $ do
+        comment "unpack port"
+        unpackFrom buf fhdrOff (mp ~> mac_fport)
 
-  return ()
+        comment "unpack frm_payload"
+        arrayMap $ \i -> do
+          when (i <=? toIx ((signCast :: Uint32 -> Sint32) (len - (fhdrOff + 1)))) $ do
+            unpackFrom buf (fhdrOff + 1 + (signCast $ fromIx i))
+              (mp ~> mac_frm_payload ~> stringDataL ! i)
+
+        store (mp ~> mac_frm_payload ~> stringLengthL)
+              (signCast $ len - (fhdrOff + 1 - off))
+    ]
 
 packFHDR :: KnownNat len
          => Ref s1 ('Array len ('Stored Uint8))
