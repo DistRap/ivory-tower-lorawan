@@ -104,7 +104,7 @@ fromJoinAccept buf nwkKey len = do
   l <- deref (p ~> phy_mac_payload ~> mac_frm_payload ~> stringLengthL)
   lenU8 <- local $ ival $ (bitCast :: Uint32 -> Uint8) $ signCast l
 
-  acc <- decryptJoinAccept nwkKey
+  (acc, micMsg) <- decryptJoinAccept nwkKey
     (constRef $ p ~> phy_mac_payload ~> mac_frm_payload ~> stringDataL)
     (constRef $ lenU8)
 
@@ -112,7 +112,7 @@ fromJoinAccept buf nwkKey len = do
   micValid <- local $ ival true
   arrayMap $ \i -> do
     computed <- deref (mic ! i)
-    received <- deref (p ~> phy_mic ! i)
+    received <- deref (micMsg ! i)
     unless (computed ==? received) $ do
       store micValid false
       breakOut

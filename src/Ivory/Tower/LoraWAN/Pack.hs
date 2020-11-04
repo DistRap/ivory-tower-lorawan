@@ -39,13 +39,22 @@ unpackPhyPayload :: KnownNat len
 unpackPhyPayload buf len = do
   p <- local $ izero
   unpackFrom buf 0 (p ~> phy_mhdr)
-  -- if this is join accept mic is part of encrypted payload
-  l <- assign $ len - 5
-  unpackMacPayload buf 1 l (constRef $ p ~> phy_mhdr) (p ~> phy_mac_payload)
+  mhdr <- p ~>* phy_mhdr
+  cond_ [
+      mhdr #. mtype ==? join_accept ==> do
+        -- if this is join accept mic is part of encrypted payload
+        l <- assign $ len - 1
+        unpackMacPayload buf 1 l (constRef $ p ~> phy_mhdr) (p ~> phy_mac_payload)
 
-  arrayMap $ \i -> do
-    unpackFrom buf ((len - 4) + (signCast $ fromIx i))
-      (p ~> phy_mic ! i)
+    , true ==> do
+
+        l <- assign $ len - 5
+        unpackMacPayload buf 1 l (constRef $ p ~> phy_mhdr) (p ~> phy_mac_payload)
+
+        arrayMap $ \i -> do
+          unpackFrom buf ((len - 4) + (signCast $ fromIx i))
+            (p ~> phy_mic ! i)
+    ]
   return p
 
 packMacPayload :: KnownNat len
@@ -293,13 +302,24 @@ decryptJoinAccept :: ConstRef s1 AESKey
                   -> ConstRef s2 AESArray
                   -> ConstRef s2 ('Stored Uint8)
                   -> Ivory (AllocEffects s3)
-                       (ConstRef ('Stack s3) ('Struct "join_accept_message"))
+                       ( ConstRef ('Stack s3) ('Struct "join_accept_message")
+                       , ConstRef ('Stack s3) CMACArray)
 decryptJoinAccept nwkKey encrypted len = do
   -- acc len is 12 to 12 + 16 (optional cflist) + 4 mic = 32
   out <- local $ izero
+  mic <- local $ izero
   aes_buf nwkKey encrypted len out
-  ja <- unpackJoinAccept (constRef out) 0 len
-  return ja
+  l <- deref len
+  lenNoMic <- fmap constRef $ local $ ival (l - 4)
+  ja <- unpackJoinAccept (constRef out) 0 lenNoMic
+
+  micOff <- deref lenNoMic
+  arrayMap $ \i -> do
+    refCopy
+      (mic ! i)
+      (out ! (toIx micOff + (toIx . fromIx) i))
+
+  return (ja, constRef mic)
 
 encryptPayload :: Ref s1 AESArray
                -> IBool
