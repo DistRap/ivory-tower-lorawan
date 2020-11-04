@@ -362,7 +362,6 @@ encryptPayload buf isDownlink appSKey devAddr fcnt plain len = do
     store (blocks ! ix 15) ((bitCast :: Uint32 -> Uint8) $ signCast $ fromIx i + 1)
 
   aes_buf appSKey (constRef blocks) len buf
-  -- XXX: xor only len bytes
   xor_buf buf plain len
   return (safeCast l)
 
