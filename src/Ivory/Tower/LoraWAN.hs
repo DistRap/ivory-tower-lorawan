@@ -57,7 +57,7 @@ joinRequest buf nwkKey appEui devEui nonce = do
   join <- local $ istruct [
          req_join_eui .= ival appEui
        , req_dev_eui  .= ival devEui
-       , req_dev_nonce .= iarray (map ival [bitCast $ nonce `iShiftL` 8, bitCast nonce])
+       , req_dev_nonce .= iarray (map ival [bitCast $ nonce `iShiftR` 8, bitCast nonce])
        ]
 
   msg <- new join_request
