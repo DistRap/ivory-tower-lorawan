@@ -7,6 +7,7 @@ module Ivory.Tower.LoraWAN (
   , joinRequest
   , fromJoinAccept
   , uplink
+  , downlink
   , packString
   , loraWANDeps
   , loraWANModule
@@ -91,6 +92,48 @@ uplink buf appSKey nwkSKey isConfirmed fport devAddr fcnt payload len = do
   micData false nwkSKey devAddr fcnt msg
   packString buf $ flip packPhyPayload msg
 
+downlink :: KnownNat len
+         => ConstRef s1 ('Array len ('Stored Uint8))
+         -> Uint32
+         -> ConstRef s1 KeyAppS
+         -> ConstRef s1 KeyFNwkSInt
+         -> ConstRef s2 ('Stored DevAddr) -- Device address
+         -> Ivory (AllocEffects s)
+                    (ConstRef ('Stack s) ('Stored IBool),
+                     ConstRef ('Stack s) ('Struct "mac_payload"))
+downlink buf len appSKey nwkSKey devAddr = do
+  msg <- unpackPhyPayload buf len
+  l <- deref (msg ~> phy_mac_payload ~> mac_frm_payload ~> stringLengthL)
+  lenU8 <- local $ ival $ (bitCast :: Uint32 -> Uint8) $ signCast l
+
+  -- for now we take FCNT from incoming message, but we should
+  -- compare it with stored one and handle overflows due to Uint16/Uint32
+  fcntDownMsg <- msg ~> phy_mac_payload ~> mac_fhdr ~>* fhdr_fcnt
+  fcntDown <- fmap constRef $ local $ ival $ safeCast fcntDownMsg
+
+  payload <- local $ izero
+  refCopy payload (msg ~> phy_mac_payload ~> mac_frm_payload ~> stringDataL)
+
+  packString (msg ~> phy_mac_payload ~> mac_frm_payload) $ \to ->
+    encryptPayload to true appSKey devAddr
+      fcntDown
+      (constRef payload)
+      (constRef lenU8)
+
+  micMsg <- local $ izero
+  refCopy micMsg (msg ~> phy_mic)
+
+  micData true nwkSKey devAddr fcntDown msg
+
+  micValid <- local $ ival true
+  arrayMap $ \i -> do
+    computed <- deref (msg ~> phy_mic ! i)
+    received <- deref (micMsg ! i)
+    unless (computed ==? received) $ do
+      store micValid false
+      breakOut
+
+  return (constRef micValid, constRef $ msg ~> phy_mac_payload)
 
 fromJoinAccept :: KnownNat len
                => ConstRef s1 ('Array len ('Stored Uint8))
