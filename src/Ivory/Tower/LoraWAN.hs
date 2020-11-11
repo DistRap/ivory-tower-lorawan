@@ -9,6 +9,7 @@ module Ivory.Tower.LoraWAN (
   , uplink
   , downlink
   , packString
+  , loraWANArtifacts
   , loraWANDeps
   , loraWANModule
   , module Ivory.Tower.LoraWAN.Types
