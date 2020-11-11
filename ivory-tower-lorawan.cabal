@@ -47,4 +47,21 @@ library
                        tower
 
   default-language:    Haskell2010
-  ghc-options:         -Wall
+  ghc-options:         -Wall -Wunused-packages
+
+test-suite test
+  hs-source-dirs: test
+  type:           exitcode-stdio-1.0
+  main-is:        Test.hs
+  other-modules:  Types
+  ghc-options:    -Wall -Wunused-packages
+  build-depends:  base >= 4.6 && < 5
+               ,  tasty >= 0.10
+               ,  ivory
+               ,  ivory-artifact
+               ,  ivory-stdlib
+               ,  ivory-serialize
+               ,  ivory-tasty
+               ,  ivory-tower-lorawan
+
+  default-language: Haskell2010
