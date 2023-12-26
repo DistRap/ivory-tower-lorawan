@@ -6,7 +6,7 @@ void cmac(const uint8_t key[LEN], uint8_t buf[CMAC_BUF_LEN], const uint8_t *size
     cmac_init(key, contx);
     cmac_data(buf, *size, contx);
     cmac_end(fullTag, contx);
-    for(uint8_t i = 0; i <= CMAC_TAG_LEN; i++) tag[i] = fullTag[i];
+    for(uint8_t i = 0; i < CMAC_TAG_LEN; i++) tag[i] = fullTag[i];
 }
 
 void aes_enc(const uint8_t key[LEN], const uint8_t buf[LEN], uint8_t encoded[LEN]) {
