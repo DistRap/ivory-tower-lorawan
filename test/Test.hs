@@ -20,7 +20,7 @@ joinEUI = 0x70B3D57ED002695F
 devEUI :: DevEUI
 devEUI = 0x00F9F42F46DA72DD
 
-samplesTest :: Def ('[] ':-> Sint32)
+samplesTest :: Def ('[] :-> Sint32)
 samplesTest = proc "main" $ body $ do
 
   (buf :: Ref s UARTBuffer) <- local $ izero
