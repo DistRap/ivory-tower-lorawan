@@ -195,6 +195,7 @@ AES_RETURN aes_xi(encrypt)(const unsigned char *in, unsigned char *out, const ae
 
 #if defined(IT4_SET)
 #undef  dec_imvars
+#pragma GCC diagnostic ignored "-Warray-bounds"
 #define inv_rnd(y,x,k,c)    (s(y,c) = (k)[c] ^ four_tables(x,t_use(i,n),inv_var,rf1,c))
 #elif defined(IT1_SET)
 #undef  dec_imvars
